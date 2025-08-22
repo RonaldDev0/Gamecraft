@@ -1,0 +1,9 @@
+[package]
+name = "gamecraft"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.16.1"
+image = "0.25.6"
+winit = "0.30.12"
