@@ -41,14 +41,14 @@ fn push_quad(
     uvs.push([uv11[0], uv11[1]]);
     uvs.push([uv00[0], uv11[1]]);
 
+    // Correct winding order for CCW (counter-clockwise) when viewed from outside
     indices.push(base_index + 0);
     indices.push(base_index + 1);
     indices.push(base_index + 2);
 
+    indices.push(base_index + 0);
     indices.push(base_index + 2);
     indices.push(base_index + 3);
-    indices.push(base_index + 0);
-
 }
 
 pub fn generate_mesh_for_chunk(chunk: &Chunk) -> ChunkMesh {
@@ -69,80 +69,79 @@ pub fn generate_mesh_for_chunk(chunk: &Chunk) -> ChunkMesh {
 
                 let base = Vec3::new(world_x, world_y, world_z);
 
-                // +X face
+                // +X face (right) - only if there's air to the right
                 let nx = x as i32 + 1;
-                 if nx >= CHUNK_SIZE as i32 || chunk.get_block(nx as usize, y, z) == AIR {
-                     let bx = base + Vec3::new(1.0, 0.0, 0.0);
-                     let a = [bx.x, base.y, base.z];
-                     let b = [bx.x, base.y+1.0, base.z];
-                     let c = [bx.x, base.y+1.0, base.z+1.0];
-                     let d = [bx.x, base.y, base.z+1.0];
-                     let normal = [1.0, 0.0, 0.0];
-                     let base_index = positions.len() as u32;
-                     push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
-                 }
-                 
-                 // -X face
+                if nx >= CHUNK_SIZE as i32 || chunk.get_block(nx as usize, y, z) == AIR {
+                    let bx = base + Vec3::new(1.0, 0.0, 0.0);
+                    let a = [bx.x, base.y, base.z];
+                    let b = [bx.x, base.y, base.z + 1.0];
+                    let c = [bx.x, base.y + 1.0, base.z + 1.0];
+                    let d = [bx.x, base.y + 1.0, base.z];
+                    let normal = [1.0, 0.0, 0.0];
+                    let base_index = positions.len() as u32;
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
+                }
+                
+                // -X face (left) - only if there's air to the left
                 let nx = x as i32 - 1;
                 if nx < 0 || chunk.get_block(nx as usize, y, z) == AIR {
-                    let bx = base;
-                    let a = [bx.x, base.y, base.z];
-                    let b = [bx.x, base.y, base.z+1.0];
-                    let c = [bx.x, base.y+1.0, base.z+1.0];
-                    let d = [bx.x, base.y+1.0, base.z];
+                    let a = [base.x, base.y, base.z + 1.0];
+                    let b = [base.x, base.y, base.z];
+                    let c = [base.x, base.y + 1.0, base.z];
+                    let d = [base.x, base.y + 1.0, base.z + 1.0];
                     let normal = [-1.0, 0.0, 0.0];
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
                 }
 
-                // +Y face (top)
+                // +Y face (top) - only if there's air above
                 let ny = y as i32 + 1;
                 if ny >= CHUNK_SIZE as i32 || chunk.get_block(x, ny as usize, z) == AIR {
-                    let by = base + Vec3::new(0.0,1.0,0.0);
+                    let by = base + Vec3::new(0.0, 1.0, 0.0);
                     let a = [base.x, by.y, base.z];
-                    let b = [base.x+1.0, by.y, base.z];
-                    let c = [base.x+1.0, by.y, base.z+1.0];
-                    let d = [base.x, by.y, base.z+1.0];
-                    let normal = [0.0,1.0,0.0];
+                    let b = [base.x + 1.0, by.y, base.z];
+                    let c = [base.x + 1.0, by.y, base.z + 1.0];
+                    let d = [base.x, by.y, base.z + 1.0];
+                    let normal = [0.0, 1.0, 0.0];
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
                 }
 
-                // -Y face (bottom)
+                // -Y face (bottom) - only if there's air below
                 let ny = y as i32 - 1;
                 if ny < 0 || chunk.get_block(x, ny as usize, z) == AIR {
-                    let a = [base.x, base.y, base.z];
-                    let b = [base.x, base.y, base.z+1.0];
-                    let c = [base.x+1.0, base.y, base.z+1.0];
-                    let d = [base.x+1.0, base.y, base.z];
-                    let normal = [0.0,-1.0,0.0];
+                    let a = [base.x, base.y, base.z + 1.0];
+                    let b = [base.x + 1.0, base.y, base.z + 1.0];
+                    let c = [base.x + 1.0, base.y, base.z];
+                    let d = [base.x, base.y, base.z];
+                    let normal = [0.0, -1.0, 0.0];
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
                 }
 
-                // +Z face (front)
+                // +Z face (front) - only if there's air in front
                 let nz = z as i32 + 1;
                 if nz >= CHUNK_SIZE as i32 || chunk.get_block(x, y, nz as usize) == AIR {
-                    let bz = base + Vec3::new(0.0,0.0,1.0);
-                    let a = [base.x, base.y, bz.z];
-                    let b = [base.x, base.y+1.0, bz.z];
-                    let c = [base.x+1.0, base.y+1.0, bz.z];
-                    let d = [base.x+1.0, base.y, bz.z];
-                    let normal = [0.0,0.0,1.0];
+                    let bz = base + Vec3::new(0.0, 0.0, 1.0);
+                    let a = [base.x + 1.0, base.y, bz.z];
+                    let b = [base.x, base.y, bz.z];
+                    let c = [base.x, base.y + 1.0, bz.z];
+                    let d = [base.x + 1.0, base.y + 1.0, bz.z];
+                    let normal = [0.0, 0.0, 1.0];
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
                 }
 
-                // -Z face (back)
+                // -Z face (back) - only if there's air behind
                 let nz = z as i32 - 1;
                 if nz < 0 || chunk.get_block(x, y, nz as usize) == AIR {
                     let a = [base.x, base.y, base.z];
-                    let b = [base.x+1.0, base.y, base.z];
-                    let c = [base.x+1.0, base.y+1.0, base.z];
-                    let d = [base.x, base.y+1.0, base.z];
-                    let normal = [0.0,0.0,-1.0];
+                    let b = [base.x + 1.0, base.y, base.z];
+                    let c = [base.x + 1.0, base.y + 1.0, base.z];
+                    let d = [base.x, base.y + 1.0, base.z];
+                    let normal = [0.0, 0.0, -1.0];
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a,b,c,d, normal, [0.0,0.0], [1.0,1.0]);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0]);
                 }
             }
         }
