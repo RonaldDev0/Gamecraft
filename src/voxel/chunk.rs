@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 #[derive(Clone)]
 pub struct Chunk {
-    pub blocks: Vec<BlockId>,
+    pub blocks: Vec<Block>,
     pub position: IVec3
 }
 
@@ -20,12 +20,12 @@ impl Chunk {
         x + CHUNK_SIZE * (y + CHUNK_SIZE * z)
     }
 
-    pub fn set_block(&mut self, x: usize, y: usize, z: usize, id: BlockId) {
+    pub fn set_block(&mut self, x: usize, y: usize, z: usize, block: Block) {
         let idx = Self::index(x, y, z);
-        self.blocks[idx] = id;
+        self.blocks[idx] = block;
     }
 
-    pub fn get_block(&self, x: usize, y: usize, z: usize) -> BlockId {
+    pub fn get_block(&self, x: usize, y: usize, z: usize) -> Block {
         let idx = Self::index(x, y, z);
         self.blocks[idx]
     }
