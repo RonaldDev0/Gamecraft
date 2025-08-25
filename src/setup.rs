@@ -6,7 +6,7 @@ use bevy::{
     },
     window::{
         PrimaryWindow,
-        WindowMode::BorderlessFullscreen,
+        // WindowMode::BorderlessFullscreen,
         PresentMode::AutoVsync
     },
     winit::WinitWindows,
@@ -26,7 +26,7 @@ impl Plugin for SetupPlugin {
                         title: "Gamecraft".to_string(),
                         resizable: false,
                         present_mode: AutoVsync,
-                        mode: BorderlessFullscreen(MonitorSelection::Primary),
+                        // mode: BorderlessFullscreen(MonitorSelection::Primary),
                         ..default()
                     }),
                     ..default()
