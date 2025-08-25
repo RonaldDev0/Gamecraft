@@ -31,8 +31,6 @@ fn push_quad(
     c: [f32; 3],
     d: [f32; 3],
     normal: [f32; 3],
-    uv00: [f32; 2],
-    uv11: [f32; 2],
     block_color: [f32; 4],
 ) {
     positions.push(a);
@@ -45,10 +43,11 @@ fn push_quad(
     normals.push(normal);
     normals.push(normal);
 
-    uvs.push([uv00[0], uv00[1]]);
-    uvs.push([uv11[0], uv00[1]]);
-    uvs.push([uv11[0], uv11[1]]);
-    uvs.push([uv00[0], uv11[1]]);
+    // UV coordinates for each vertex
+    uvs.push([0.0, 0.0]);
+    uvs.push([1.0, 0.0]);
+    uvs.push([1.0, 1.0]);
+    uvs.push([0.0, 1.0]);
 
     // Add colors for all 4 vertices of this quad
     colors.push(block_color);
@@ -57,13 +56,26 @@ fn push_quad(
     colors.push(block_color);
 
     // Correct winding order for CCW (counter-clockwise) when viewed from outside
+    // First triangle: a -> b -> c
     indices.push(base_index + 0);
     indices.push(base_index + 1);
     indices.push(base_index + 2);
 
+    // Second triangle: a -> c -> d
     indices.push(base_index + 0);
     indices.push(base_index + 2);
     indices.push(base_index + 3);
+}
+
+fn should_render_face(chunk: &Chunk, x: i32, y: i32, z: i32) -> bool {
+    // Check bounds first
+    if x < 0 || y < 0 || z < 0 || 
+       x >= CHUNK_SIZE as i32 || y >= CHUNK_SIZE as i32 || z >= CHUNK_SIZE as i32 {
+        return true; // Render face at chunk boundary
+    }
+    
+    // Check if adjacent block is air
+    chunk.get_block(x as usize, y as usize, z as usize).id == AIR.id
 }
 
 pub fn generate_mesh_for_chunk(chunk: &Chunk) -> ChunkMesh {
@@ -90,82 +102,78 @@ pub fn generate_mesh_for_chunk(chunk: &Chunk) -> ChunkMesh {
                 let world_y = y as f32 + (chunk.position.y as f32 * CHUNK_SIZE as f32);
                 let world_z = z as f32 + (chunk.position.z as f32 * CHUNK_SIZE as f32);
 
-                let base = Vec3::new(world_x, world_y, world_z);
                 let block_color = color_to_rgba_fast(&block.color);
 
-                // +X face (right) - only if there's air to the right
-                let nx = x as i32 + 1;
-                if nx >= CHUNK_SIZE as i32 || chunk.get_block(nx as usize, y, z).id == AIR.id {
-                    let bx = base + Vec3::new(1.0, 0.0, 0.0);
-                    let a = [bx.x, base.y, base.z];
-                    let b = [bx.x, base.y, base.z + 1.0];
-                    let c = [bx.x, base.y + 1.0, base.z + 1.0];
-                    let d = [bx.x, base.y + 1.0, base.z];
-                    let normal = [1.0, 0.0, 0.0];
+                // Right face (+X) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32 + 1, y as i32, z as i32) {
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    let a = [world_x + 1.0, world_y,       world_z + 1.0]; // bottom-right
+                    let b = [world_x + 1.0, world_y,       world_z      ]; // bottom-left  
+                    let c = [world_x + 1.0, world_y + 1.0, world_z      ]; // top-left
+                    let d = [world_x + 1.0, world_y + 1.0, world_z + 1.0]; // top-right
+                    let normal = [1.0, 0.0, 0.0];
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
                 
-                // -X face (left) - only if there's air to the left
-                let nx = x as i32 - 1;
-                if nx < 0 || chunk.get_block(nx as usize, y, z).id == AIR.id {
-                    let a = [base.x, base.y, base.z + 1.0];
-                    let b = [base.x, base.y, base.z];
-                    let c = [base.x, base.y + 1.0, base.z];
-                    let d = [base.x, base.y + 1.0, base.z + 1.0];
+                // Left face (-X) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32 - 1, y as i32, z as i32) {
+                    let base_index = positions.len() as u32;
+                    let a = [world_x, world_y,       world_z      ]; // bottom-right
+                    let b = [world_x, world_y,       world_z + 1.0]; // bottom-left
+                    let c = [world_x, world_y + 1.0, world_z + 1.0]; // top-left  
+                    let d = [world_x, world_y + 1.0, world_z      ]; // top-right
                     let normal = [-1.0, 0.0, 0.0];
-                    let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
 
-                // +Y face (top) - only if there's air above
-                let ny = y as i32 + 1;
-                if ny >= CHUNK_SIZE as i32 || chunk.get_block(x, ny as usize, z).id == AIR.id {
-                    let by = base + Vec3::new(0.0, 1.0, 0.0);
-                    let a = [base.x, by.y, base.z];
-                    let b = [base.x + 1.0, by.y, base.z];
-                    let c = [base.x + 1.0, by.y, base.z + 1.0];
-                    let d = [base.x, by.y, base.z + 1.0];
+                // Top face (+Y) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32, y as i32 + 1, z as i32) {
+                    let base_index = positions.len() as u32;
+                    let a = [world_x,       world_y + 1.0, world_z + 1.0]; // bottom-left
+                    let b = [world_x + 1.0, world_y + 1.0, world_z + 1.0]; // bottom-right
+                    let c = [world_x + 1.0, world_y + 1.0, world_z      ]; // top-right
+                    let d = [world_x,       world_y + 1.0, world_z      ]; // top-left
                     let normal = [0.0, 1.0, 0.0];
-                    let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
 
-                // -Y face (bottom) - only if there's air below
-                let ny = y as i32 - 1;
-                if ny < 0 || chunk.get_block(x, ny as usize, z).id == AIR.id {
-                    let a = [base.x, base.y, base.z + 1.0];
-                    let b = [base.x + 1.0, base.y, base.z + 1.0];
-                    let c = [base.x + 1.0, base.y, base.z];
-                    let d = [base.x, base.y, base.z];
+                // Bottom face (-Y) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32, y as i32 - 1, z as i32) {
+                    let base_index = positions.len() as u32;
+                    let a = [world_x,       world_y, world_z      ]; // bottom-left
+                    let b = [world_x + 1.0, world_y, world_z      ]; // bottom-right
+                    let c = [world_x + 1.0, world_y, world_z + 1.0]; // top-right
+                    let d = [world_x,       world_y, world_z + 1.0]; // top-left
                     let normal = [0.0, -1.0, 0.0];
-                    let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
 
-                // +Z face (front) - only if there's air in front
-                let nz = z as i32 + 1;
-                if nz >= CHUNK_SIZE as i32 || chunk.get_block(x, y, nz as usize).id == AIR.id {
-                    let bz = base + Vec3::new(0.0, 0.0, 1.0);
-                    let a = [base.x + 1.0, base.y, bz.z];
-                    let b = [base.x, base.y, bz.z];
-                    let c = [base.x, base.y + 1.0, bz.z];
-                    let d = [base.x + 1.0, base.y + 1.0, bz.z];
+                // Front face (+Z) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32, y as i32, z as i32 + 1) {
+                    let base_index = positions.len() as u32;
+                    let a = [world_x,       world_y,       world_z + 1.0]; // bottom-left
+                    let b = [world_x + 1.0, world_y,       world_z + 1.0]; // bottom-right
+                    let c = [world_x + 1.0, world_y + 1.0, world_z + 1.0]; // top-right
+                    let d = [world_x,       world_y + 1.0, world_z + 1.0]; // top-left
                     let normal = [0.0, 0.0, 1.0];
-                    let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
 
-                // -Z face (back) - only if there's air behind
-                let nz = z as i32 - 1;
-                if nz < 0 || chunk.get_block(x, y, nz as usize).id == AIR.id {
-                    let a = [base.x, base.y, base.z];
-                    let b = [base.x + 1.0, base.y, base.z];
-                    let c = [base.x + 1.0, base.y + 1.0, base.z];
-                    let d = [base.x, base.y + 1.0, base.z];
-                    let normal = [0.0, 0.0, -1.0];
+                // Back face (-Z) - vista desde afuera del cubo
+                if should_render_face(chunk, x as i32, y as i32, z as i32 - 1) {
                     let base_index = positions.len() as u32;
-                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, base_index, a, b, c, d, normal, [0.0, 0.0], [1.0, 1.0], block_color);
+                    let a = [world_x + 1.0, world_y,       world_z]; // bottom-left
+                    let b = [world_x,       world_y,       world_z]; // bottom-right
+                    let c = [world_x,       world_y + 1.0, world_z]; // top-right
+                    let d = [world_x + 1.0, world_y + 1.0, world_z]; // top-left
+                    let normal = [0.0, 0.0, -1.0];
+                    push_quad(&mut positions, &mut normals, &mut uvs, &mut indices, &mut colors, 
+                             base_index, a, b, c, d, normal, block_color);
                 }
             }
         }
