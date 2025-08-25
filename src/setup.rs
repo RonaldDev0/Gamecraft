@@ -7,7 +7,8 @@ use bevy::{
     window::{
         PrimaryWindow,
         // WindowMode::BorderlessFullscreen,
-        PresentMode::AutoVsync
+        PresentMode::AutoVsync,
+        CursorGrabMode,
     },
     winit::WinitWindows,
 };
@@ -40,7 +41,8 @@ impl Plugin for SetupPlugin {
                     ..Default::default()
                 }),
         )
-        .add_systems(Startup, set_window_icon);
+        .add_systems(Startup, (set_window_icon, setup_window))
+        .add_systems(Update, toggle_cursor);
     }
 }
 
@@ -58,7 +60,6 @@ fn set_window_icon(
                     match Icon::from_rgba(rgba.into_raw(), width, height) {
                         Ok(icon) => {
                             primary.set_window_icon(Some(icon));
-                            info!("✅ Window icon set successfully");
                         }
                         Err(err) => {
                             warn!("⚠️ Failed to create window icon: {}", err);
@@ -72,5 +73,30 @@ fn set_window_icon(
         }
     } else {
         warn!("⚠️ No primary window found, skipping icon setup");
+    }
+}
+
+fn setup_window(mut windows: Query<&mut Window>) {
+    if let Ok(mut window) = windows.single_mut() {
+        window.cursor_options.visible = false;
+        window.cursor_options.grab_mode = CursorGrabMode::Locked;
+    }
+}
+
+fn toggle_cursor(
+    mut windows: Query<&mut Window>,
+    keys: Res<ButtonInput<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::Escape) {
+        if let Ok(mut window) = windows.single_mut() {
+            // Toggle cursor grab mode
+            if window.cursor_options.visible {
+                window.cursor_options.visible = false;
+                window.cursor_options.grab_mode = bevy::window::CursorGrabMode::Confined;
+            } else {
+                window.cursor_options.visible = true;
+                window.cursor_options.grab_mode = bevy::window::CursorGrabMode::None;
+            }
+        }
     }
 }
